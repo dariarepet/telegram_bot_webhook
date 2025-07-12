@@ -34,5 +34,8 @@ application.add_handler(CommandHandler("start", start))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
 # Установка Webhook
-async def
+async def set_webhook():
+    await bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
 
+import asyncio
+asyncio.run(set_webhook())
