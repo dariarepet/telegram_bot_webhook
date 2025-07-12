@@ -64,3 +64,11 @@ if __name__ == "__main__":
     # Запуск Flask-сервера
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+import asyncio
+
+async def set_webhook():
+    await bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+
+if __name__ == "__main__":
+    asyncio.run(set_webhook())
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
