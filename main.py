@@ -12,7 +12,7 @@ from telegram.ext import (
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Например: https://your-app.onrender.com
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 app = Flask(__name__)
 bot = Bot(token=TOKEN)
@@ -37,32 +37,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     username = user.username or user.first_name or "Пользователь"
 
-    # Отправка админу
     await context.bot.send_message(
         chat_id=ADMIN_CHAT_ID,
         text=f"📩 Вопрос от @{username} (id {user.id}):\n\n{text}",
     )
     await update.message.reply_text("✅ Вопрос отправлен. Я скоро отвечу!")
 
-# Webhook endpoint
+# Синхронный webhook endpoint для Flask
 @app.route(f"/{TOKEN}", methods=["POST"])
-async def webhook():
+def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
-    await application.process_update(update)
+    asyncio.run(application.process_update(update))
     return "ok"
 
 @app.route("/")
 def index():
     return "Бот работает!"
 
-# Регистрируем хендлеры
-application.add_handler(CommandHandler("start", start))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-# Запуск бота
-async def run():
+# Функция для установки webhook (вызывай её отдельно перед запуском Flask)
+async def set_webhook():
     await bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    # Установка webhook (один раз)
+    asyncio.run(set_webhook())
+    # Запуск Flask
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
