@@ -7,8 +7,8 @@ from telegram.ext import (
 import asyncio
 
 TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Твой URL на Render, например https://kabinet-rus-bot.onrender.com
-ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "123456789"))  # Твой телеграм ID
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
 
 app = Flask(__name__)
 bot = Bot(token=TOKEN)
@@ -31,10 +31,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     text = update.message.text
-    # Отправляем админу сообщение с ником и текстом
+    username = user.username or user.first_name or "Пользователь"
     await context.bot.send_message(
         chat_id=ADMIN_CHAT_ID,
-        text=f"📩 Вопрос от @{user.username or user.first_name}:\n\n{text}"
+        text=f"📩 Вопрос от @{username} (id {user.id}):\n\n{text}"
     )
     await update.message.reply_text("Ваш вопрос отправлен. Я скоро отвечу ✨")
 
