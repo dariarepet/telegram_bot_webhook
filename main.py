@@ -1,23 +1,28 @@
 import os
-import logging
 from flask import Flask, request
 from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 )
-
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+import asyncio
 
 TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Например: https://kabinet-rus-bot-c226.onrender.com
 ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
 
 app = Flask(__name__)
 bot = Bot(token=TOKEN)
 application = ApplicationBuilder().token(TOKEN).build()
+
+# Кнопки с твоими ссылками
+def get_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("Обо мне", url="https://daria-emelianova.yonote.ru/share/rus")],
+        [InlineKeyboardButton("Абонементы", url="https://daria-emelianova.yonote.ru/share/abonement")],
+        [InlineKeyboardButton("Курс для репетитора", url="https://daria-emelianova.yonote.ru/share/kabinet")],
+        [InlineKeyboardButton("Заявка на пробное", url="https://forms.yandex.ru/u/683ad41feb61464bc78c1b3e")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 @app.route("/")
 def index():
@@ -25,26 +30,14 @@ def index():
 
 @app.route(f"/{TOKEN}", methods=["POST"])
 async def webhook():
-    try:
-        data = request.get_json(force=True)
-        update = Update.de_json(data, bot)
-        await application.process_update(update)
-        return "ok"
-    except Exception as e:
-        logging.error(f"Webhook error: {e}", exc_info=True)
-        return "error", 500
+    update = Update.de_json(request.get_json(force=True), bot)
+    await application.process_update(update)
+    return "ok"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("🧑‍🏫 Обо мне", url="https://daria-emelianova.yonote.ru/share/rus")],
-        [InlineKeyboardButton("💳 Абонементы", url="https://daria-emelianova.yonote.ru/share/abonement")],
-        [InlineKeyboardButton("📚 Курс для репетиторов", url="https://daria-emelianova.yonote.ru/share/kabinet")],
-        [InlineKeyboardButton("✍️ Заявка на пробное", url="https://forms.yandex.ru/u/683ad41feb61464bc78c1b3e")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         "👋 Я бот Дарьи Емельяновой. Чем могу помочь?",
-        reply_markup=reply_markup
+        reply_markup=get_keyboard()
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -60,15 +53,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 application.add_handler(CommandHandler("start", start))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-if __name__ == "__main__":
-    # Запуск Flask-сервера
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-import asyncio
-
-async def set_webhook():
-    await bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+# НЕ запускать app.run() при работе с gunicorn!
 
 if __name__ == "__main__":
-    asyncio.run(set_webhook())
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    # Для локального запуска (например, при разработке)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+
