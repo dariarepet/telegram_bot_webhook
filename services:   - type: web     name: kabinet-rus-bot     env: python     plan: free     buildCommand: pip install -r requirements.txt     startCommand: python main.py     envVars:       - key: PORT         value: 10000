@@ -4,7 +4,13 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    startCommand: gunicorn main:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     envVars:
       - key: PORT
         value: 10000
+      - key: BOT_TOKEN
+        value: "8004644159:AAHpTPScjFTiI45zG7uUbJh4q41xNrLupXU"
+      - key: WEBHOOK_URL
+        value: "https://kabinet-rus-bot-c226.onrender.com"
+      - key: ADMIN_CHAT_ID
+        value: "1267693167"
