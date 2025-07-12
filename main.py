@@ -1,10 +1,9 @@
 import os
 from flask import Flask, request
-from telegram import Update, Bot, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 )
-import asyncio
 
 TOKEN = os.getenv("BOT_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
@@ -12,15 +11,18 @@ ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
 
 app = Flask(__name__)
 bot = Bot(token=TOKEN)
+
 application = ApplicationBuilder().token(TOKEN).build()
 
-# Главное меню
+# Кнопки с ссылками
 keyboard = [
-    [KeyboardButton("📚 Обо мне"), KeyboardButton("💳 Абонементы")],
-    [KeyboardButton("👩‍🏫 Я репетитор"), KeyboardButton("🎓 Хочу курс")],
-    [KeyboardButton("📝 Пробный урок"), KeyboardButton("❓ Задать вопрос")],
+    [InlineKeyboardButton("ℹ️ Обо мне", url="https://daria-emelianova.yonote.ru/share/rus")],
+    [InlineKeyboardButton("📝 Записаться на пробное", url="https://forms.yandex.ru/u/683ad41feb61464bc78c1b3e")],
+    [InlineKeyboardButton("💳 Абонементы", url="https://daria-emelianova.yonote.ru/share/abonement")],
+    [InlineKeyboardButton("🎓 Курс для репетиторов", url="https://daria-emelianova.yonote.ru/share/kabinet")],
+    [InlineKeyboardButton("❓ Задать вопрос", callback_data="ask_question")]
 ]
-reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+reply_markup = InlineKeyboardMarkup(keyboard)
 
 @app.route("/")
 def index():
@@ -32,44 +34,38 @@ async def webhook():
     await application.process_update(update)
     return "ok"
 
-# Старт
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Я бот Дарьи Емельяновой. Чем могу помочь?\n👇 Выберите нужный пункт:",
-        reply_markup=reply_markup
+        "👋 Я бот Дарьи Емельяновой. Чем могу помочь?", reply_markup=reply_markup
     )
 
-# Обработка кнопок и сообщений
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    user = update.message.from_user
-    username = user.username or user.first_name or "Пользователь"
+async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.message.reply_text(
+        "Пожалуйста, напишите ваш вопрос прямо сюда, и я перешлю его Дарье."
+    )
 
-    if text == "📚 Обо мне":
-        await update.message.reply_text("Я Дарья Емельянова, преподаватель русского языка. Готовлю к ОГЭ и ЕГЭ. 🎓")
-    elif text == "💳 Абонементы":
-        await update.message.reply_text("Урок 45 мин — 1000₽\nАбонемент 4 занятия — 3800₽\n8 занятий — 7200₽.")
-    elif text == "👩‍🏫 Я репетитор":
-        await update.message.reply_text("Заполните анкету, и я свяжусь с вами. 💼")
-    elif text == "🎓 Хочу курс":
-        await update.message.reply_text("Выберите курс — базовый, продвинутый или экспресс-подготовка. 📘")
-    elif text == "📝 Пробный урок":
-        await update.message.reply_text("Оставьте заявку на пробное занятие — напишите свой номер и имя. 📝")
-    elif text == "❓ Задать вопрос":
-        await update.message.reply_text("Напишите ваш вопрос сюда, и я передам Дарье. ✉️")
-    else:
-        # Отправка вопроса админу
-        await context.bot.send_message(
-            chat_id=ADMIN_CHAT_ID,
-            text=f"📩 Вопрос от @{username} (id {user.id}):\n\n{text}"
-        )
-        await update.message.reply_text("Ваш вопрос отправлен. Я скоро отвечу ✨")
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    text = update.message.text
+    username = user.username or user.first_name or "Пользователь"
+    # Отправляем вопрос в админский чат с ником и айди
+    await context.bot.send_message(
+        chat_id=ADMIN_CHAT_ID,
+        text=f"📩 Вопрос от @{username} (id {user.id}):\n\n{text}"
+    )
+    await update.message.reply_text("Ваш вопрос отправлен. Я скоро отвечу ✨")
 
 application.add_handler(CommandHandler("start", start))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+application.add_handler(CallbackQueryHandler(ask_question, pattern="ask_question"))
+application.add_handler(MessageHandler(~filters.COMMAND & filters.TEXT, handle_message))
 
-# Установка Webhook
 async def set_webhook():
     await bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
 
-asyncio.run(set_webhook())
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(set_webhook())
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
