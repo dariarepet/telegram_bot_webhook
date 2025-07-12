@@ -43,7 +43,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text("✅ Вопрос отправлен. Я скоро отвечу!")
 
-# Синхронный webhook endpoint для Flask
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
@@ -54,12 +53,14 @@ def webhook():
 def index():
     return "Бот работает!"
 
-# Функция для установки webhook (вызывай её отдельно перед запуском Flask)
-async def set_webhook():
-    await bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+# Регистрируем хендлеры
+application.add_handler(CommandHandler("start", start))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+def set_webhook():
+    asyncio.run(bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}"))
 
 if __name__ == "__main__":
-    # Установка webhook (один раз)
-    asyncio.run(set_webhook())
-    # Запуск Flask
+    set_webhook()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
